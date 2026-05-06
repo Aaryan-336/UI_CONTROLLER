@@ -64,4 +64,4 @@ chmod +x setup_and_run.sh
 
 ---
 
-Developed with ❤️ by **Antigravity AI** for **Aaryan Khanna**.
+Developed with ❤️ by **Aaryan Khanna**.
