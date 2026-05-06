@@ -80,18 +80,35 @@ class DrawingEngine:
     def __init__(self, shape):
         self.canvas = np.zeros(shape, dtype=np.uint8)
         self.prev_pt = None
-        self.color = (255, 180, 0) # Neon Cyan
+        self.color = (255, 255, 0) # Default Cyan
+        self.colors = [
+            (255, 255, 0),   # Cyan
+            (0, 0, 255),     # Red
+            (0, 255, 0),     # Green
+            (0, 255, 255),   # Yellow
+            (255, 255, 255)  # White
+        ]
 
     def update(self, pt, active):
         if not active or pt is None:
             self.prev_pt = None
             return
+        
         if self.prev_pt is not None:
-            # Interpolation for silky lines
+            # Distance threshold to break stroke if hand moves too fast/far
             dist = math.hypot(pt[0]-self.prev_pt[0], pt[1]-self.prev_pt[1])
+            if dist > 80: # Break stroke on large jumps
+                self.prev_pt = None
+                return
+
             thickness = int(np.interp(dist, [2, 50], [12, 18]))
             cv2.line(self.canvas, self.prev_pt, pt, self.color, thickness, cv2.LINE_AA)
+            
         self.prev_pt = pt
+
+    def select_color(self, idx):
+        if 0 <= idx < len(self.colors):
+            self.color = self.colors[idx]
 
     def get_blended(self, frame):
         # Convert canvas to grayscale for masking
@@ -263,6 +280,12 @@ class ProConsole:
                     elif self.mode == "AIR DRAW":
                         # Fixed string mismatch: AIR DRAW instead of DRAWING
                         self.canvas.update(cursor, fingers == 1)
+                        # Color selection logic (Hovering top boxes)
+                        if cursor[1] < 110:
+                            for i in range(len(self.canvas.colors)):
+                                bx = 400 + i * 80
+                                if bx < cursor[0] < bx + 60:
+                                    self.canvas.select_color(i)
 
             # 2. Emotions (Sub-frequency / Selective)
             if self.mode == "EMOTION" or fingers == 5: # Auto-check in volume/palm or manual
@@ -302,10 +325,21 @@ class ProConsole:
             p_time = time.time()
             cv2.putText(frame, f"FPS: {int(fps)}", (w-150, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 1)
 
+            if self.mode == "AIR DRAW":
+                # Draw Color Selector Buttons
+                for i, col in enumerate(self.canvas.colors):
+                    bx = 400 + i * 80
+                    is_sel = (col == self.canvas.color)
+                    cv2.rectangle(frame, (bx, 10), (bx + 60, 70), col, -1)
+                    if is_sel:
+                        cv2.rectangle(frame, (bx-2, 8), (bx + 62, 72), (255,255,255), 2)
+                cv2.putText(frame, "COLORS", (310, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 1)
+                cv2.putText(frame, "FIST TO CLEAR", (40, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150,150,150), 1)
+
             if self.mode in ["VOLUME", "BRIGHTNESS"]:
-                cv2.rectangle(frame, (40, 100), (340, 120), (40, 40, 40), -1)
-                cv2.rectangle(frame, (40, 100), (40 + int(self.pct*3), 120), (0, 255, 170), -1)
-                cv2.putText(frame, f"{int(self.pct)}%", (360, 115), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+                cv2.rectangle(frame, (40, 130), (340, 150), (40, 40, 40), -1)
+                cv2.rectangle(frame, (40, 130), (40 + int(self.pct*3), 150), (0, 255, 170), -1)
+                cv2.putText(frame, f"{int(self.pct)}%", (360, 147), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 1)
 
             cv2.imshow("Pro Console Ultra", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'): break
