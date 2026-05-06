@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+
+# MediaPipe Models (Should be downloaded at runtime)
+*.task
+
+# OpenCV / Drawing outputs
+drawing.png
+
+# macOS
+.DS_Store
